@@ -1,5 +1,3 @@
-# frida patch教程
-
 # 0x1 frida 编译流程
 
 > 建立一个项目目录并拉下frida源码，并进入项目目录
@@ -64,7 +62,6 @@ config.mk        frida-clr   frida-gum   frida-qml     frida-tools  Makefile.lin
 CONTRIBUTING.md  frida-core  frida-node  frida.sln     Makefile     Makefile.macos.mk    node-v22.12.0-linux-x64.tar.xz
 (base) r@ubuntu20:~/Documents/FRIDA/frida$ rm -r node-v22.12.0-linux-x64.tar.xz
 (base) r@ubuntu20:~/Documents/FRIDA/frida$ 
-
 ```
 
 > 再make一下
@@ -180,8 +177,6 @@ frida-inject  frida-portal  frida-server  gum-graft
 > 
 > ![](/home/r/.config/marktext/images/2024-12-09-23-42-57-image.png)
 
-
-
 > 然后打上patch, 如果不会打的话其实一个个改也不费事，字符串的话可以直接替换，我这里把frida改成了rusda，你也可以改成其他的
 > 
 > ![](/home/r/.config/marktext/images/2024-12-10-00-56-07-image.png)
@@ -190,7 +185,7 @@ github: [GitHub - taisuii/rusda: 对frida 16.2.1的patch](https://github.com/tai
 
 > python脚本新建在frida-core/src目录下
 
-如果你提示No module named 'lief'
+如果你提示No module named 'lief' 说明Python模块没有装好 pip3 install lief
 
 > 然后编译，这里可以过滤日志编译，如果编译成功还是有很多特征大部分原因是python脚本没有打上patch
 
@@ -235,7 +230,6 @@ make core-android-arm64 | grep Patch
 [*] Patch frida-agent: /home/r/Documents/FRIDA/frida/build/tmp-android-arm64/frida-core/src/frida-agent@emb/frida-agent-arm.so
 [*] Patch `frida` to `rusda`
 (base) r@ubuntu20:~/Documents/FRIDA/frida$ ls 
-
 ```
 
 # 0x3 运行测试
