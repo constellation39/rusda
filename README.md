@@ -175,11 +175,11 @@ frida-inject  frida-portal  frida-server  gum-graft
 
 > 先把所有的 "frida_agent_main" 换成"main"
 > 
-> ![](/home/r/.config/marktext/images/2024-12-09-23-42-57-image.png)
+> ![](images/2024-12-09-23-42-57-image.png)
 
 > 然后打上patch, 如果不会打的话其实一个个改也不费事，字符串的话可以直接替换，我这里把frida改成了rusda，你也可以改成其他的
 > 
-> ![](/home/r/.config/marktext/images/2024-12-10-00-56-07-image.png)
+> ![](images/2024-12-10-00-56-07-image.png)
 
 github: [GitHub - taisuii/rusda: 对frida 16.2.1的patch](https://github.com/taisuii/rusda)
 
@@ -248,7 +248,7 @@ chmod +x frida-server
 frida -H 127.0.0.1:12345 -f com.yimian.envcheck
 ```
 
-![](/home/r/.config/marktext/images/2024-12-10-01-06-20-image.png)
+![](images/2024-12-10-01-06-20-image.png)
 
 # 0x4 参考
 
