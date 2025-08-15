@@ -181,7 +181,7 @@ frida-inject  frida-portal  frida-server  gum-graft
 > 
 > ![](images/2024-12-10-00-56-07-image.png)
 
-github: [GitHub - taisuii/rusda: 对frida 16.2.1的patch](https://github.com/taisuii/rusda)
+github: [GitHub - constellation39/rusda: 对frida 16.2.1的patch](https://github.com/constellation39/rusda/tree/main/frida-core)
 
 > python脚本新建在frida-core/src目录下
 

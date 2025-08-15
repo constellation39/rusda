@@ -1,0 +1,77 @@
+name: Build Frida for Android (ARM64)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Rusda (for patches)
+      uses: actions/checkout@v4
+      with:
+        path: rusda
+
+    - name: Checkout Frida
+      uses: actions/checkout@v4
+      with:
+        repository: frida/frida
+        ref: 16.2.1
+        path: frida
+        submodules: 'recursive'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.12.0'
+
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential git lib32stdc++-9-dev libc6-dev-i386 patch
+
+    - name: Install Python Dependencies
+      run: |
+        pip3 install lief
+
+    - name: Install Android NDK
+      run: |
+        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+        unzip android-ndk-r25c-linux.zip -d $HOME
+        echo "ANDROID_NDK_ROOT=$HOME/android-ndk-r25c" >> $GITHUB_ENV
+        echo "$HOME/android-ndk-r25c" >> $GITHUB_PATH
+
+    - name: Apply Modifications and Patches
+      working-directory: ./frida
+      run: |
+        echo ">>> 1. Replacing 'frida_agent_main' with 'main'"
+        grep -rl "frida_agent_main" . | xargs sed -i 's/frida_agent_main/main/g'
+
+        echo ">>> 2. Copying patch files and scripts from rusda repo"
+        cp -r ../rusda/frida-core/* ./frida-core/
+        cp -r ../rusda/frida-gum/* ./frida-gum/
+
+        echo ">>> 3. Applying patches for frida-core"
+        for patch_file in $(find frida-core -name "*.patch"); do
+          echo "Applying $patch_file"
+          patch -p1 < $patch_file
+        done
+
+        echo ">>> 4. Applying patches for frida-gum"
+        for patch_file in $(find frida-gum -name "*.patch"); do
+          echo "Applying $patch_file"
+          patch -p1 < $patch_file
+        done
+
+    - name: Compile Frida
+      working-directory: ./frida
+      run: make core-android-arm64
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frida-android-arm64
+        path: frida/build/frida-android-arm64/bin/
