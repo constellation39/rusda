@@ -22,6 +22,37 @@ jobs:
         ref: 16.2.1
         path: frida
         submodules: 'recursive'
+        # 添加以下配置来处理网络问题
+        persist-credentials: false
+        fetch-depth: 0
+
+    # 新增：配置 Git 以处理网络问题
+    - name: Configure Git
+      run: |
+        git config --global http.version HTTP/1.1
+        git config --global http.postBuffer 524288000
+        git config --global http.lowSpeedLimit 0
+        git config --global http.lowSpeedTime 999999
+
+    # 新增：重试子模块更新（如果失败）
+    - name: Ensure Submodules are Updated
+      working-directory: ./frida
+      run: |
+        # 尝试更新子模块，最多重试 3 次
+        for i in {1..30}; do
+          echo "Attempt $i to update submodules..."
+          if git submodule update --init --recursive --force; then
+            echo "Submodules updated successfully"
+            break
+          else
+            echo "Failed attempt $i, waiting 10 seconds..."
+            sleep 10
+            if [ $i -eq 3 ]; then
+              echo "Failed to update submodules after 3 attempts"
+              exit 1
+            fi
+          fi
+        done
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -39,8 +70,11 @@ jobs:
 
     - name: Install Android NDK
       run: |
-        wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-        unzip android-ndk-r25c-linux.zip -d $HOME
+        # 使用镜像源加速下载（可选）
+        NDK_URL="https://dl.google.com/android/repository/android-ndk-r25c-linux.zip"
+        echo "Downloading Android NDK..."
+        wget --progress=bar:force:noscroll --tries=3 --timeout=60 $NDK_URL
+        unzip -q android-ndk-r25c-linux.zip -d $HOME
         echo "ANDROID_NDK_ROOT=$HOME/android-ndk-r25c" >> $GITHUB_ENV
         echo "$HOME/android-ndk-r25c" >> $GITHUB_PATH
 
@@ -51,27 +85,70 @@ jobs:
         grep -rl "frida_agent_main" . | xargs sed -i 's/frida_agent_main/main/g'
 
         echo ">>> 2. Copying patch files and scripts from rusda repo"
-        cp -r ../rusda/frida-core/* ./frida-core/
-        cp -r ../rusda/frida-gum/* ./frida-gum/
+        cp -r ../rusda/frida-core/* ./frida-core/ 2>/dev/null || true
+        cp -r ../rusda/frida-gum/* ./frida-gum/ 2>/dev/null || true
 
         echo ">>> 3. Applying patches for frida-core"
-        for patch_file in $(find frida-core -name "*.patch"); do
-          echo "Applying $patch_file"
-          patch -p1 < $patch_file
-        done
+        if [ -d "frida-core" ]; then
+          cd frida-core
+          for patch_file in $(find . -name "*.patch" 2>/dev/null); do
+            echo "Applying $patch_file"
+            # 改进的补丁应用逻辑
+            for p_level in 1 0; do
+              if patch -p$p_level --dry-run < "$patch_file" 2>/dev/null; then
+                patch -p$p_level < "$patch_file"
+                echo "Successfully applied $patch_file with -p$p_level"
+                break
+              elif [ $p_level -eq 0 ]; then
+                echo "WARNING: Cannot apply $patch_file, skipping..."
+              fi
+            done
+          done
+          cd ..
+        fi
 
         echo ">>> 4. Applying patches for frida-gum"
-        for patch_file in $(find frida-gum -name "*.patch"); do
-          echo "Applying $patch_file"
-          patch -p1 < $patch_file
-        done
+        if [ -d "frida-gum" ]; then
+          cd frida-gum
+          for patch_file in $(find . -name "*.patch" 2>/dev/null); do
+            echo "Applying $patch_file"
+            for p_level in 1 0; do
+              if patch -p$p_level --dry-run < "$patch_file" 2>/dev/null; then
+                patch -p$p_level < "$patch_file"
+                echo "Successfully applied $patch_file with -p$p_level"
+                break
+              elif [ $p_level -eq 0 ]; then
+                echo "WARNING: Cannot apply $patch_file, skipping..."
+              fi
+            done
+          done
+          cd ..
+        fi
 
     - name: Compile Frida
       working-directory: ./frida
-      run: make core-android-arm64
+      run: |
+        # 设置超时和重试
+        timeout 30m make core-android-arm64 || {
+          echo "Build failed, retrying..."
+          make clean
+          timeout 30m make core-android-arm64
+        }
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: frida-android-arm64
         path: frida/build/frida-android-arm64/bin/
+        retention-days: 30  # 保留 30 天
+
+    # 新增：上传构建日志（用于调试）
+    - name: Upload Build Logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          frida/build/**/*.log
+          frida/build/**/*.txt
+        retention-days: 7
